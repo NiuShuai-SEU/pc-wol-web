@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#080b14" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="远程开机" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' wss://sfe0f5f7.ala.cn-hangzhou.emqxsl.cn:8084; img-src 'self' data:; style-src 'self'; script-src 'self';" />
+  <title>家庭台式机 · 远程开机</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+  <div class="noise"></div>
+
+  <main class="page-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">HOME CONTROL</p>
+        <h1>家庭台式机</h1>
+      </div>
+      <button class="icon-button" id="settingsButton" aria-label="打开设置" title="设置">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Zm9 3.8-2.1-.8a7.6 7.6 0 0 0-.6-1.5l.9-2-2.9-2.9-2 .9a7.6 7.6 0 0 0-1.5-.6L12 3H8l-.8 2.1a7.6 7.6 0 0 0-1.5.6l-2-.9L.8 7.7l.9 2a7.6 7.6 0 0 0-.6 1.5L-1 12v4l2.1.8a7.6 7.6 0 0 0 .6 1.5l-.9 2 2.9 2.9 2-.9a7.6 7.6 0 0 0 1.5.6L8 25h4l.8-2.1a7.6 7.6 0 0 0 1.5-.6l2 .9 2.9-2.9-.9-2a7.6 7.6 0 0 0 .6-1.5L21 16v-4Z" transform="scale(.86) translate(2 1)"/></svg>
+      </button>
+    </header>
+
+    <section class="hero-card">
+      <div class="card-glow"></div>
+
+      <div class="status-row">
+        <div class="status-pill" id="statusPill" data-state="disconnected">
+          <span class="status-dot"></span>
+          <span id="statusText">尚未连接</span>
+        </div>
+        <span class="secure-badge">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5.1 3.4 9.8 8 11 4.6-1.2 8-5.9 8-11V5l-8-3Zm0 4.2 4 1.5V11c0 3.2-1.9 6.5-4 7.7-2.1-1.2-4-4.5-4-7.7V7.7l4-1.5Z"/></svg>
+          TLS / WSS
+        </span>
+      </div>
+
+      <div class="device-visual" aria-hidden="true">
+        <div class="monitor">
+          <div class="screen">
+            <div class="screen-shine"></div>
+            <div class="screen-logo">WOL</div>
+          </div>
+          <div class="stand"></div>
+          <div class="base"></div>
+        </div>
+      </div>
+
+      <div class="device-copy">
+        <p class="device-subtitle">ESP32-C3 · EMQX CLOUD</p>
+        <h2>远程唤醒控制</h2>
+        <p class="device-description">通过加密 MQTT 通道向家里的 ESP32-C3 下发唤醒指令。</p>
+      </div>
+
+      <button class="power-button" id="wakeButton" disabled>
+        <span class="power-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2h2v10h-2V2Zm5.7 3.3 1.4-1.4A9 9 0 1 1 5.9 3.9l1.4 1.4A7 7 0 1 0 16.7 5.3Z"/></svg>
+        </span>
+        <span class="power-label">远程开机</span>
+        <span class="power-hint">发送 Magic Packet 指令</span>
+      </button>
+
+      <div class="metrics-grid">
+        <div class="metric">
+          <span class="metric-label">云端通道</span>
+          <strong id="channelMetric">未连接</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">主题</span>
+          <strong>home/pc/wol</strong>
+        </div>
+        <div class="metric metric-wide">
+          <span class="metric-label">最近操作</span>
+          <strong id="lastAction">暂无操作</strong>
+        </div>
+      </div>
+
+      <button class="reconnect-button hidden" id="reconnectButton">重新连接</button>
+    </section>
+
+    <p class="footer-note">指令仅用于唤醒已配置 WOL 的家庭电脑。页面不会保存你的密码，除非你主动选择“记住此设备”。</p>
+  </main>
+
+  <div class="modal-backdrop hidden" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <section class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">CONNECTION</p>
+          <h3 id="settingsTitle">连接设置</h3>
+        </div>
+        <button class="icon-button small" id="closeSettings" aria-label="关闭设置">×</button>
+      </div>
+
+      <div class="broker-card">
+        <span>EMQX Serverless</span>
+        <code>sfe0f5f7.ala.cn-hangzhou.emqxsl.cn:8084</code>
+      </div>
+
+      <label class="field">
+        <span>MQTT 用户名</span>
+        <input id="usernameInput" autocomplete="username" spellcheck="false" value="pc-wol-controller" />
+      </label>
+
+      <label class="field">
+        <span>MQTT 密码</span>
+        <div class="password-wrap">
+          <input id="passwordInput" type="password" autocomplete="current-password" placeholder="输入 pc-wol-controller 的密码" />
+          <button id="togglePassword" type="button">显示</button>
+        </div>
+      </label>
+
+      <label class="switch-row">
+        <div>
+          <strong>记住此设备</strong>
+          <span>密码仅保存在当前浏览器的本地存储中</span>
+        </div>
+        <input type="checkbox" id="rememberInput" />
+        <span class="switch-ui"></span>
+      </label>
+
+      <div class="form-error hidden" id="formError"></div>
+      <button class="primary-button" id="saveConnectButton">保存并连接</button>
+      <button class="secondary-button" id="forgetButton">清除本机保存的信息</button>
+    </section>
+  </div>
+
+  <div class="modal-backdrop hidden" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <section class="confirm-card">
+      <div class="confirm-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2h2v10h-2V2Zm5.7 3.3 1.4-1.4A9 9 0 1 1 5.9 3.9l1.4 1.4A7 7 0 1 0 16.7 5.3Z"/></svg>
+      </div>
+      <h3 id="confirmTitle">确认远程开机？</h3>
+      <p>将向 <code>home/pc/wol</code> 发布一次 <code>wake</code> 指令。</p>
+      <div class="confirm-actions">
+        <button class="secondary-button" id="cancelWake">取消</button>
+        <button class="danger-primary" id="confirmWake">发送开机指令</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
